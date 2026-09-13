@@ -12,7 +12,7 @@ thingsFile = "D:\Research\Project\THINGS\dataset\TVSD\monkeyF\_logs\things_imgs.
 imgRoot = "E:\Database\THINGS\concepts and images\images_THINGS";
 outFile = "D:\Research\Project\THINGS\data\data.mat";
 metadataFile = replace(outFile, ".mat", "_metadata.csv");
-targetSize = [100 100];
+targetSize = [200 200];
 
 m = matfile(p);
 Smap = load(mapFile);
