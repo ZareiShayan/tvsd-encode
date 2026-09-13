@@ -84,8 +84,7 @@ class Model(nn.Module):
     def __init__(self, Conf=None, **kwargs):
         super().__init__()
 
-        Conf_ = copy.deepcopy(Conf)
-        self.Conf = Conf_
+        self.Conf = copy.deepcopy(Conf)
 
         model_conf = Conf.model_type[Conf.model_type.name]
 
@@ -93,92 +92,77 @@ class Model(nn.Module):
         self.n_bins = Conf.data.n_bins
         self.n_electrodes = Conf.data.n_electrodes
 
-        self.cnn_hidden = model_conf.cnn_hidden
-        self.n_hidden = model_conf.n_hidden
-        self.n_positional = model_conf.n_positional
-        self.n_heads = model_conf.n_heads
-        self.n_layers = model_conf.n_layers
+        self.cnn_n_hidden = model_conf.cnn_n_hidden
+        self.cnn_n_layers = model_conf.cnn_n_layers
+        self.positional_n_hidden = model_conf.positional_n_hidden
+        self.transformer_n_hidden = model_conf.transformer_n_hidden
+        self.transformer_n_heads = model_conf.transformer_n_heads
+        self.transformer_n_layers = model_conf.transformer_n_layers
         self.dropout = model_conf.dropout
-        self.nonlinearity = model_conf.nonlinearity
+        self.transformer_nonlinearity = model_conf.transformer_nonlinearity
 
-        self.n_transformer = self.n_hidden + self.n_positional
+        self.cnn_n_out = self.cnn_n_hidden * 2 ** (self.cnn_n_layers - 1)
+        self.image_n_hidden = self.transformer_n_hidden - self.positional_n_hidden
 
-        assert self.n_transformer % self.n_heads == 0
+        assert self.transformer_n_hidden % self.transformer_n_heads == 0
 
-        self.cnn = nn.Sequential(
-            nn.Conv2d(self.n_channels, self.cnn_hidden, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(self.cnn_hidden, self.cnn_hidden * 2, kernel_size=3, padding=1, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(self.cnn_hidden * 2, self.cnn_hidden * 4, kernel_size=3, padding=1, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(self.cnn_hidden * 4, self.cnn_hidden * 8, kernel_size=3, padding=1, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(self.cnn_hidden * 8, self.cnn_hidden * 16, kernel_size=3, padding=1, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(self.cnn_hidden * 16, self.cnn_hidden * 32, kernel_size=3, padding=1, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(self.cnn_hidden * 32, self.cnn_hidden * 64, kernel_size=3, padding=1, stride=2),
-            nn.ReLU(),
+        cnn_layers = []
+
+        for layer_idx in range(self.cnn_n_layers):
+            in_channels = self.n_channels if layer_idx == 0 else self.cnn_n_hidden * 2 ** (layer_idx - 1)
+            out_channels = self.cnn_n_hidden * 2 ** layer_idx
+
+            cnn_layers += [
+                nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=2, stride=2),
+            ]
+
+        cnn_layers += [
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
-        )
+        ]
+
+        self.cnn = nn.Sequential(*cnn_layers)
 
         self.image_proj = nn.Sequential(
-            nn.Linear(self.cnn_hidden * 64, self.n_hidden),
+            nn.Linear(self.cnn_n_out, self.image_n_hidden),
             nn.ReLU(),
             nn.Dropout(self.dropout),
         )
 
         self.positional_encoding = PositionalEncoding(
             n_bins=self.n_bins,
-            n_positional=self.n_positional,
+            n_positional=self.positional_n_hidden,
         )
 
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=self.n_transformer,
-            nhead=self.n_heads,
-            dim_feedforward=self.n_transformer * 4,
+            d_model=self.transformer_n_hidden,
+            nhead=self.transformer_n_heads,
+            dim_feedforward=self.transformer_n_hidden * 4,
             dropout=self.dropout,
-            activation=self.nonlinearity,
+            activation=self.transformer_nonlinearity,
             batch_first=True,
             norm_first=True,
         )
 
-        self.transformer_encoder = nn.TransformerEncoder(
-            encoder_layer,
-            num_layers=self.n_layers,
-        )
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=self.transformer_n_layers)
 
         self.dropout_layer = nn.Dropout(self.dropout)
 
-        self.output_proj = nn.Linear(
-            self.n_transformer,
-            self.n_electrodes,
-        )
+        self.output_proj = nn.Linear(self.transformer_n_hidden, self.n_electrodes)
 
     def forward(self, x):
         image_features = self.cnn(x)
         image_features = self.image_proj(image_features)
 
-        image_features = image_features.unsqueeze(1).expand(
-            -1,
-            self.n_bins,
-            -1,
-        )
+        image_features = image_features.unsqueeze(1).expand(-1, self.n_bins, -1)
 
-        positional_features = self.positional_encoding(
-            batch_size=x.shape[0],
-        )
+        positional_features = self.positional_encoding(batch_size=x.shape[0])
 
-        transformer_input = torch.cat(
-            [image_features, positional_features],
-            dim=-1,
-        )
+        transformer_input = torch.cat([image_features, positional_features], dim=-1)
 
-        transformed = self.transformer_encoder(
-            transformer_input,
-        )
+        transformed = self.transformer_encoder(transformer_input)
 
         transformed = self.dropout_layer(transformed)
 
