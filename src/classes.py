@@ -89,22 +89,18 @@ class Model(nn.Module):
         model_conf = Conf.model_type[Conf.model_type.name]
 
         self.n_channels = Conf.data.n_channels
+        self.n_pixels = Conf.data.n_pixels
         self.n_bins = Conf.data.n_bins
         self.n_electrodes = Conf.data.n_electrodes
 
         self.cnn_n_hidden = model_conf.cnn_n_hidden
         self.cnn_n_layers = model_conf.cnn_n_layers
-        self.positional_n_hidden = model_conf.positional_n_hidden
-        self.transformer_n_hidden = model_conf.transformer_n_hidden
-        self.transformer_n_heads = model_conf.transformer_n_heads
-        self.transformer_n_layers = model_conf.transformer_n_layers
+        self.n_latent = model_conf.n_latent
         self.dropout = model_conf.dropout
-        self.transformer_nonlinearity = model_conf.transformer_nonlinearity
 
         self.cnn_n_out = self.cnn_n_hidden * 2 ** (self.cnn_n_layers - 1)
-        self.image_n_hidden = self.transformer_n_hidden - self.positional_n_hidden
-
-        assert self.transformer_n_hidden % self.transformer_n_heads == 0
+        self.cnn_height = self.n_pixels // 2 ** self.cnn_n_layers
+        self.cnn_width = self.n_pixels // 2 ** self.cnn_n_layers
 
         cnn_layers = []
 
@@ -114,59 +110,62 @@ class Model(nn.Module):
 
             cnn_layers += [
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm2d(out_channels),
                 nn.ReLU(),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ]
 
-        cnn_layers += [
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-        ]
-
         self.cnn = nn.Sequential(*cnn_layers)
 
-        self.image_proj = nn.Sequential(
-            nn.Linear(self.cnn_n_out, self.image_n_hidden),
-            nn.ReLU(),
-            nn.Dropout(self.dropout),
-        )
+        self.latent_channel = nn.Parameter(torch.empty(self.n_latent, self.cnn_n_out))
+        self.latent_height = nn.Parameter(torch.empty(self.n_latent, self.cnn_height))
+        self.latent_width = nn.Parameter(torch.empty(self.n_latent, self.cnn_width))
+        self.latent_bias = nn.Parameter(torch.zeros(self.n_latent))
 
-        self.positional_encoding = PositionalEncoding(
-            n_bins=self.n_bins,
-            n_positional=self.positional_n_hidden,
-        )
+        self.latent_activation = nn.GELU()
+        self.latent_dropout = nn.Dropout(self.dropout)
 
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=self.transformer_n_hidden,
-            nhead=self.transformer_n_heads,
-            dim_feedforward=self.transformer_n_hidden * 4,
-            dropout=self.dropout,
-            activation=self.transformer_nonlinearity,
-            batch_first=True,
-            norm_first=True,
-        )
+        self.latent_time = nn.Parameter(torch.empty(self.n_latent, self.n_bins))
+        self.latent_electrode = nn.Parameter(torch.empty(self.n_latent, self.n_electrodes))
+        self.output_bias = nn.Parameter(torch.zeros(self.n_bins, self.n_electrodes))
 
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=self.transformer_n_layers)
-
-        self.dropout_layer = nn.Dropout(self.dropout)
-
-        self.output_proj = nn.Linear(self.transformer_n_hidden, self.n_electrodes)
+        nn.init.normal_(self.latent_channel, mean=0.0, std=0.02)
+        nn.init.normal_(self.latent_height, mean=0.0, std=0.02)
+        nn.init.normal_(self.latent_width, mean=0.0, std=0.02)
+        nn.init.normal_(self.latent_time, mean=0.0, std=0.02)
+        nn.init.normal_(self.latent_electrode, mean=0.0, std=0.02)
 
     def forward(self, x):
-        image_features = self.cnn(x)
-        image_features = self.image_proj(image_features)
+        cnn_features = self.cnn(x)
 
-        image_features = image_features.unsqueeze(1).expand(-1, self.n_bins, -1)
+        latent_filter = (
+            self.latent_channel[:, :, None, None]
+            * self.latent_height[:, None, :, None]
+            * self.latent_width[:, None, None, :]
+        )
 
-        positional_features = self.positional_encoding(batch_size=x.shape[0])
+        latent_features = torch.einsum(
+            "bchw,kchw->bk",
+            cnn_features,
+            latent_filter,
+        )
 
-        transformer_input = torch.cat([image_features, positional_features], dim=-1)
+        latent_features = latent_features + self.latent_bias
+        latent_features = self.latent_activation(latent_features)
+        latent_features = self.latent_dropout(latent_features)
 
-        transformed = self.transformer_encoder(transformer_input)
+        latent_time = (
+            latent_features[:, :, None]
+            * self.latent_time[None, :, :]
+        )
 
-        transformed = self.dropout_layer(transformed)
+        y_hat = torch.einsum(
+            "bkt,ke->bte",
+            latent_time,
+            self.latent_electrode,
+        )
 
-        y_hat = self.output_proj(transformed)
+        y_hat = y_hat + self.output_bias
 
         return y_hat
 
