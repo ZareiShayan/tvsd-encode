@@ -98,9 +98,9 @@ class Model(nn.Module):
         self.n_latent = model_conf.n_latent
         self.dropout = model_conf.dropout
 
-        self.cnn_n_out = self.cnn_n_hidden * 2 ** (self.cnn_n_layers - 1)
-        self.cnn_height = self.n_pixels // 2 ** self.cnn_n_layers
-        self.cnn_width = self.n_pixels // 2 ** self.cnn_n_layers
+        self.cnn_n_out = self.n_channels if self.cnn_n_layers == 0 else self.cnn_n_hidden * 2 ** (self.cnn_n_layers - 1)
+        self.cnn_height = self.n_pixels if self.cnn_n_layers == 0 else self.n_pixels // 2 ** self.cnn_n_layers
+        self.cnn_width = self.n_pixels if self.cnn_n_layers == 0 else self.n_pixels // 2 ** self.cnn_n_layers
 
         cnn_layers = []
 
