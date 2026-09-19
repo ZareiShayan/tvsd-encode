@@ -91,7 +91,6 @@ class Model(nn.Module):
         self.n_channels = Conf.data.n_channels
         self.n_pixels = Conf.data.n_pixels
         self.n_bins = Conf.data.n_bins
-        self.n_electrodes = Conf.data.n_electrodes
         self.n_days = Conf.data.n_days
         self.n_electrodes_list = Conf.data.n_electrodes_list
 
