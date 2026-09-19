@@ -219,17 +219,43 @@ class LitModel(L.LightningModule):
         return self.full_model(x)
 
     def training_step(self, batch):
-        x, y = batch
-        y_hat = self.model(x)
-        loss = self.mse_loss(y_hat, y)
-        self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        losses = []
+    
+        for day_idx, day_batch in batch.items():
+            x, y = day_batch
+            y_hat = self.model(x, int(day_idx))
+            losses.append(self.mse_loss(y_hat, y))
+    
+        loss = torch.stack(losses).mean()
+    
+        self.log(
+            "train_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+    
         return loss
-        
+
     def validation_step(self, batch):
-        x, y = batch
-        y_hat = self.model(x)
-        loss = self.mse_loss(y_hat, y)
-        self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        losses = []
+    
+        for day_idx, day_batch in batch.items():
+            x, y = day_batch
+            y_hat = self.model(x, int(day_idx))
+            losses.append(self.mse_loss(y_hat, y))
+    
+        loss = torch.stack(losses).mean()
+    
+        self.log(
+            "test_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+    
         return loss
 
     def configure_optimizers(self):
