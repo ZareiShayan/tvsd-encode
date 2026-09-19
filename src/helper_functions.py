@@ -59,8 +59,8 @@ def prepare_dataset(Conf, images, spikes, train_idx, test_idx):
     train_mask = train_idx > 0
     test_mask = test_idx > 0
 
-    images_train = images[train_mask].astype(np.float32)
-    images_test = images[test_mask].astype(np.float32)
+    images_train = images[train_mask].astype(np.int8)
+    images_test = images[test_mask].astype(np.int8)
 
     spikes_train = spikes[train_mask]
     spikes_test = spikes[test_mask]
@@ -68,8 +68,8 @@ def prepare_dataset(Conf, images, spikes, train_idx, test_idx):
     images_train = torch.as_tensor(images_train, dtype=torch.int8).permute(0, 3, 1, 2)
     images_test = torch.as_tensor(images_test, dtype=torch.int8).permute(0, 3, 1, 2)
 
-    image_mean = images_train.mean(dim=(0, 2, 3), keepdim=True)
-    image_std = images_train.std(dim=(0, 2, 3), keepdim=True)
+    image_mean = images_train.float().mean(dim=(0, 2, 3), keepdim=True)
+    image_std = images_train.float().std(dim=(0, 2, 3), keepdim=True)
 
     spikes_train = torch.as_tensor(spikes_train, dtype=torch.float32).permute(0, 2, 1)
     spikes_test = torch.as_tensor(spikes_test, dtype=torch.float32).permute(0, 2, 1)
