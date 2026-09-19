@@ -92,6 +92,8 @@ class Model(nn.Module):
         self.n_pixels = Conf.data.n_pixels
         self.n_bins = Conf.data.n_bins
         self.n_electrodes = Conf.data.n_electrodes
+        self.n_days = Conf.data.n_days
+        self.n_electrodes_list = Conf.data.n_electrodes_list
 
         self.cnn_n_hidden = model_conf.cnn_n_hidden
         self.cnn_n_layers = model_conf.cnn_n_layers
@@ -126,16 +128,26 @@ class Model(nn.Module):
         self.latent_dropout = nn.Dropout(self.dropout)
 
         self.latent_time = nn.Parameter(torch.empty(self.n_latent, self.n_bins))
-        self.latent_electrode = nn.Parameter(torch.empty(self.n_latent, self.n_electrodes))
-        self.output_bias = nn.Parameter(torch.zeros(self.n_bins, self.n_electrodes))
+
+
+        self.latent_electrode_list = nn.ParameterList([
+            nn.Parameter(torch.empty(self.n_latent, n_electrodes))
+            for n_electrodes in self.n_electrodes_list
+        ])
+        
+        self.output_bias_list = nn.ParameterList([
+            nn.Parameter(torch.zeros(self.n_bins, n_electrodes))
+            for n_electrodes in self.n_electrodes_list
+        ])
 
         nn.init.normal_(self.latent_channel, mean=0.0, std=0.02)
         nn.init.normal_(self.latent_height, mean=0.0, std=0.02)
         nn.init.normal_(self.latent_width, mean=0.0, std=0.02)
         nn.init.normal_(self.latent_time, mean=0.0, std=0.02)
-        nn.init.normal_(self.latent_electrode, mean=0.0, std=0.02)
+        for latent_electrode in self.latent_electrode_list:
+            nn.init.normal_(latent_electrode, mean=0.0, std=0.02)
 
-    def forward(self, x):
+    def forward(self, x, day_idx):
         cnn_features = self.cnn(x)
 
         latent_filter = (
@@ -162,10 +174,10 @@ class Model(nn.Module):
         y_hat = torch.einsum(
             "bkt,ke->bte",
             latent_time,
-            self.latent_electrode,
+            self.latent_electrode_list[day_idx],
         )
-
-        y_hat = y_hat + self.output_bias
+        
+        y_hat = y_hat + self.output_bias_list[day_idx]
 
         return y_hat
 
