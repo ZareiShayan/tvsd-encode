@@ -222,6 +222,7 @@ class LitModel(L.LightningModule):
     
         for day_idx, day_batch in batch.items():
             x, y = day_batch
+            x = x.to(dtype=torch.float32)
             y_hat = self.model(x, int(day_idx))
             losses.append(self.mse_loss(y_hat, y))
     
