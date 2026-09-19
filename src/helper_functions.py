@@ -88,15 +88,10 @@ def prepare_loader(Conf, train_dataset, test_dataset):
 
     seed_everything(Conf.seed)
 
-    train_loader_generator = torch.Generator()
-    train_loader_generator.manual_seed(Conf.seed)
-    train_loader = DataLoader(train_dataset, batch_size=Conf.training.batch_size, shuffle=True, generator=train_loader_generator, num_workers=0, pin_memory=True, persistent_workers=False)
+    train_loader = DataLoader(train_dataset, batch_size=Conf.training.batch_size, shuffle=True, num_workers=0, pin_memory=True, persistent_workers=False)
+    test_loader = DataLoader(test_dataset, batch_size=Conf.training.batch_size, shuffle=False, num_workers=0, pin_memory=True, persistent_workers=False)
 
-    test_loader_generator = torch.Generator()
-    test_loader_generator.manual_seed(Conf.seed)
-    test_loader = DataLoader(test_dataset, batch_size=Conf.training.batch_size, shuffle=False, generator=test_loader_generator, num_workers=0, pin_memory=True, persistent_workers=False)
-
-    return train_loader, test_loader, (train_loader_generator, test_loader_generator)
+    return train_loader, test_loader
 
 
 def build_lit_model(Conf, loader_generators, model, enable_progress_bar_epoch):
