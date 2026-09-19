@@ -94,13 +94,9 @@ def prepare_loader(Conf, train_dataset, test_dataset):
     return train_loader, test_loader
 
 
-def build_lit_model(Conf, loader_generators, model, enable_progress_bar_epoch):
+def build_lit_model(Conf, model, enable_progress_bar_epoch):
 
-    train_loader_generator, test_loader_generator = loader_generators
     seed_everything(Conf.seed)
-    train_loader_generator.manual_seed(Conf.seed)
-    test_loader_generator.manual_seed(Conf.seed)
-
 
     early_stop = EarlyStopping(
         monitor="test_loss",
