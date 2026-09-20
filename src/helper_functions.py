@@ -264,6 +264,7 @@ def compute_attribution_map(
     Conf,
     lit_model,
     explain_sample,
+    day_idx,
     electrode_idx,
     bin_idx,
     method="integrated_gradients",
@@ -285,7 +286,7 @@ def compute_attribution_map(
         baseline = torch.zeros_like(explain_x)
 
     def forward_fn(x):
-        return model(x)[:, bin_idx, electrode_idx]
+        return model(x, day_idx)[:, bin_idx, electrode_idx]
 
     methods = {
         "integrated_gradients": IntegratedGradients,
