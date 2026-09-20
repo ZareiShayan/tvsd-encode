@@ -281,9 +281,14 @@ def compute_attribution_map(
     model = lit_model.model.to(device).eval()
 
     explain_x = explain_sample[0].to(device).unsqueeze(0)
-
+    
     if baseline is None:
         baseline = torch.zeros_like(explain_x)
+    else:
+        baseline = baseline.to(
+            device=device,
+            dtype=explain_x.dtype,
+        )
 
     def forward_fn(x):
         x = x.to(torch.float32)
