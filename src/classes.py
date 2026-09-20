@@ -147,6 +147,7 @@ class Model(nn.Module):
             nn.init.normal_(latent_electrode, mean=0.0, std=0.02)
 
     def forward(self, x, day_idx):
+        x = x.float() / 255.0
         cnn_features = self.cnn(x)
 
         latent_filter = (
