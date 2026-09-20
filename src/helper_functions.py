@@ -128,34 +128,42 @@ def build_lit_model(Conf, model, enable_progress_bar_epoch):
     return trainer, lit_model
 
 
-def predict_loader(Conf, lit_model, loader, Y_mean, Y_std):
+def predict_loader_list(
+    Conf,
+    lit_model,
+    loader_list,
+    Y_mean_list,
+    Y_std_list,
+):
     device = Conf.device
 
     lit_model = lit_model.to(device)
     lit_model.eval()
 
-    anscombe = Anscombe().to(device)
-
-    Y_mean = Y_mean.to(device, non_blocking=True)
-    Y_std = Y_std.to(device, non_blocking=True)
-
-    Y = []
-    Y_hat = []
+    Y_list = []
+    Y_hat_list = []
 
     with torch.inference_mode():
-        for x, y in loader:
-            x = x.to(device, non_blocking=True)
-            y = y.to(device, non_blocking=True)
+        for day_idx, loader in enumerate(loader_list):
+            Y_mean = Y_mean_list[day_idx].to(device, non_blocking=True)
+            Y_std = Y_std_list[day_idx].to(device, non_blocking=True)
 
-            y_hat = lit_model.model(x)
+            Y = []
+            Y_hat = []
 
-            Y.append(anscombe.inv(y * Y_std + Y_mean))
-            Y_hat.append(anscombe.inv(y_hat * Y_std + Y_mean))
+            for x, y in loader:
+                x = x.to(device, non_blocking=True)
+                y = y.to(device, non_blocking=True)
 
-    Y = torch.cat(Y, dim=0).cpu().numpy()
-    Y_hat = torch.cat(Y_hat, dim=0).cpu().numpy()
+                y_hat = lit_model.model(x, day_idx)
 
-    return Y, Y_hat
+                Y.append(y * Y_std + Y_mean)
+                Y_hat.append(y_hat * Y_std + Y_mean)
+
+            Y_list.append(torch.cat(Y, dim=0).cpu().numpy())
+            Y_hat_list.append(torch.cat(Y_hat, dim=0).cpu().numpy())
+
+    return Y_list, Y_hat_list
 
 
 def compute_correlation(y, y_hat):
