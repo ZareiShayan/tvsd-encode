@@ -128,7 +128,7 @@ def build_lit_model(Conf, model, enable_progress_bar_epoch):
     return trainer, lit_model
 
 
-def predict_loader_list(
+def predict_loader(
     Conf,
     lit_model,
     loader_list,
@@ -188,38 +188,74 @@ def compute_mse(y, y_hat):
 
     return float(np.mean((y - y_hat) ** 2))
 
-def compute_metrics(Conf, Y, Y_hat):
+def compute_metrics(
+    Y_list,
+    Y_hat_list,
+):
+    correlation_list = []
+    r2_list = []
+    mse_list = []
 
-    _, n_bins, n_electrodes = Y.shape
+    for Y, Y_hat in zip(Y_list, Y_hat_list):
+        n_electrodes = Y.shape[2]
+        n_bins = Y.shape[1]
 
-    correlation = np.full(
-        (n_electrodes, n_bins),
-        np.nan,
-        dtype=float,
+        correlation = np.full(
+            (n_electrodes, n_bins),
+            np.nan,
+            dtype=float,
+        )
+
+        r2 = np.full(
+            (n_electrodes, n_bins),
+            np.nan,
+            dtype=float,
+        )
+
+        mse = np.full(
+            (n_electrodes, n_bins),
+            np.nan,
+            dtype=float,
+        )
+
+        for electrode_idx in range(n_electrodes):
+            for bin_idx in range(n_bins):
+                y = Y[:, bin_idx, electrode_idx]
+                y_hat = Y_hat[:, bin_idx, electrode_idx]
+
+                correlation[electrode_idx, bin_idx] = compute_correlation(
+                    y,
+                    y_hat,
+                )
+
+                r2[electrode_idx, bin_idx] = compute_r2(
+                    y,
+                    y_hat,
+                )
+
+                mse[electrode_idx, bin_idx] = compute_mse(
+                    y,
+                    y_hat,
+                )
+
+        correlation_list.append(correlation)
+        r2_list.append(r2)
+        mse_list.append(mse)
+
+    correlation = np.concatenate(
+        correlation_list,
+        axis=0,
     )
 
-    r2 = np.full(
-        (n_electrodes, n_bins),
-        np.nan,
-        dtype=float,
+    r2 = np.concatenate(
+        r2_list,
+        axis=0,
     )
 
-    mse = np.full(
-        (n_electrodes, n_bins),
-        np.nan,
-        dtype=float,
+    mse = np.concatenate(
+        mse_list,
+        axis=0,
     )
-
-    for electrode_idx in range(n_electrodes):
-        for bin_idx in range(n_bins):
-            y = Y[:, bin_idx, electrode_idx]
-            y_hat = Y_hat[:, bin_idx, electrode_idx]
-
-            correlation[electrode_idx, bin_idx] = compute_correlation(y, y_hat)
-
-            r2[electrode_idx, bin_idx] = compute_r2(y, y_hat)
-
-            mse[electrode_idx, bin_idx] = compute_mse(y, y_hat)
 
     return correlation, r2, mse
 
