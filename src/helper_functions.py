@@ -286,7 +286,7 @@ def compute_attribution_map(
         baseline = torch.zeros_like(explain_x)
 
     def forward_fn(x):
-        x = x.to(device, dtype=torch.float32, non_blocking=True)
+        x = x.to(torch.float32)
         return model(x, day_idx)[:, bin_idx, electrode_idx]
 
     methods = {
