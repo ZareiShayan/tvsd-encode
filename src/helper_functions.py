@@ -152,7 +152,7 @@ def predict_loader_list(
             Y_hat = []
 
             for x, y in loader:
-                x = x.to(device, non_blocking=True)
+                x = x.to(device, dtype=torch.float32, non_blocking=True)
                 y = y.to(device, non_blocking=True)
 
                 y_hat = lit_model.model(x, day_idx)
