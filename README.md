@@ -4,17 +4,17 @@ This project studies neural encoding in the THINGS Ventral-stream Spiking Datase
 
 The proposed framework is a mean-covariance neural encoding model in which, for an image \(x\), the neural response vector \(r\) is described by an image-dependent mean and an image-dependent covariance:
 
-\[
+$$
 r \mid x \sim \mathcal{N}(\mu_\theta(x), \Sigma_\phi(x))
-\]
+$$
 
 The mean term captures stimulus-driven firing-rate structure, whereas the covariance term is intended to capture structured trial-to-trial cofluctuation beyond the mean. This decomposition matters because an image may shape not only the expected amplitude of responses but also the pattern of shared variability across electrodes and regions, which motivates the second stage of the model.
 
 The image encoder transforms each image into a feature representation, and the mean model maps those features to predicted neural activity for individual electrodes or channels:
 
-\[
+$$
 \hat{\mu}(x) = W f_\psi(x) + b
-\]
+$$
 
 Here, \(f_\psi(x)\) denotes the image encoder and \(W\) projects encoder features into neural-response space. This stage is designed to explain stimulus-locked variation in the expected response using a standard neural-encoding pipeline in which pretrained visual features are transformed into predicted neural responses.
 
