@@ -20,15 +20,6 @@ Here $f_\psi(x)$ denotes the image encoder and $W$ projects encoder features int
 
 ---
 
-## Research Questions
-
-1. Does the complexity of image features that best predict neural responses increase systematically from V1 → V4 → IT?
-2. Can occlusion-based attribution maps provide **quantitative, population-level** measures of ROI-specific image selectivity?
-3. Does an image-conditioned covariance model predict held-out trial-to-trial variability better than an image-independent covariance model, after accounting for the mean response?
-4. If covariance is image-dependent, is it primarily expressed **within ROIs** or through **forward/backward interactions** between V1, V4, and IT — and what visual properties of the image drive it?
-
----
-
 ## Interpretability
 
 Model interpretability was assessed with **occlusion analysis**: local image patches are masked one at a time and the resulting change in predicted neural response is measured.
@@ -46,15 +37,11 @@ Model interpretability was assessed with **occlusion analysis**: local image pat
 
 ---
 
-## Project Status
+## Research Questions
 
-| Component | Status |
-|---|---|
-| Data loading & preprocessing | ✅ Complete |
-| Mean encoding model | ✅ Complete |
-| Occlusion interpretability | ✅ Complete |
-| Image-conditioned covariance model | 🔄 In progress |
-| Within-ROI vs. between-ROI covariance analysis | 🔄 Planned |
+1. Does the complexity of image features that best predict neural responses increase systematically from V1 → V4 → IT?
+2. Does an image-conditioned covariance model predict held-out trial-to-trial variability better than an image-independent covariance model, after accounting for the mean response?
+3. If covariance is image-dependent, is it primarily expressed **within ROIs** or through **forward/backward interactions** between V1, V4, and IT — and what visual properties of the image drive it?
 
 ---
 
@@ -63,19 +50,12 @@ Model interpretability was assessed with **occlusion analysis**: local image pat
 ```
 tvsd-encode/
 ├── main.ipynb                  # End-to-end notebook: data → model → results
-├── src/
-│   ├── classes.py              # Model and dataset class definitions
-│   ├── helper_functions.py     # Preprocessing, training, and evaluation utilities
-│   └── plot_functions.py       # Visualization and occlusion attribution plots
-└── assets/
-    └── 1.png                   # Main figure (Figure 1)
+└── src/
+    ├── classes.py              # Model and dataset class definitions
+    ├── helper_functions.py     # Preprocessing, training, and evaluation utilities
+    └── plot_functions.py       # Visualization and occlusion attribution plots
+
 ```
-
-Key source files:
-- [`src/classes.py`](https://github.com/ZareiShayan/tvsd-encode/blob/main/src/classes.py)
-- [`src/helper_functions.py`](https://github.com/ZareiShayan/tvsd-encode/blob/main/src/helper_functions.py)
-- [`src/plot_functions.py`](https://github.com/ZareiShayan/tvsd-encode/blob/main/src/plot_functions.py)
-
 ---
 
 ## Data
@@ -94,8 +74,3 @@ The THINGS stimulus images are not redistributed here; download them separately 
 
 If you use this code, please cite the TVSD and THINGS papers above and link to this repository.
 
----
-
-## License
-
-MIT
