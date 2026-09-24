@@ -1,85 +1,72 @@
-# Mean-Covariance Modeling of Macaque Foraging Activity
+# Mean-Cov Neural Encoding on Ventral-stream Spiking Dataset
 
-This project models neural population activity recorded from the dorsolateral prefrontal cortex (dlPFC) of freely moving macaques during a foraging task. It uses data associated with *Population coding of strategic variables during foraging in freely moving macaques* to ask how behavioral and spatial variables relate to both predicted neural activity and shared population variability. [Shahidi et al., 2024](https://doi.org/10.1038/s41593-024-01575-w)
+This project studies neural encoding in the [THINGS Ventral-stream Spiking Dataset (TVSD)](https://gin.g-node.org/paolo_papale/TVSD), a large-scale macaque electrophysiology resource built on the [THINGS image database](https://things-initiative.org). THINGS contains 1,854 systematically sampled object concepts and 26,107 naturalistic images, and TVSD provides 1,024 electrodes across V1, V4, and IT in two macaques viewing about 22k THINGS images in the ventral-stream experiment. The present work focuses on image-conditioned prediction of visual responses and on interpretable analysis of the learned encoding model.
 
 ---
 
 ## Model
 
-The framework separates the predicted population response into a **conditional mean** and **shared residual covariance**:
+The proposed framework is a **mean-covariance neural encoding model** in which, for an image $x$, the neural response vector $r$ is described by an image-dependent mean and an image-dependent covariance:
 
-$$
-\mathbf{y}_i \mid \mathbf{x}_i
-\sim
-\mathcal{N}\!\left(\boldsymbol{\mu}_{\theta}(\mathbf{x}_i),\boldsymbol{\Sigma}_{\phi}\right).
-$$
+$$r \mid x \sim \mathcal{N}(\mu_\theta(x),\; \Sigma_\phi(x))$$
 
-Here, $$\mathbf{x}_i$$ contains task and time-varying spatial variables for trial $$i$$, while $$\mathbf{y}_i$$ contains the neural responses across units and time bins. A transformer-based mean model predicts activity from the covariates. After fitting the mean model, its parameters are frozen while a low-rank latent model learns covariance in the remaining population activity.
+The mean term captures stimulus-driven firing-rate structure, whereas the covariance term captures structured trial-to-trial cofluctuation beyond the mean. This decomposition matters because an image may shape not only the expected amplitude of responses but also the pattern of shared variability across electrodes and regions.
 
-The fitted covariance combines shared latent structure with unit- and time-specific residual variance:
+The image encoder transforms each image into a feature representation, and the mean model maps those features to predicted neural activity for individual electrodes:
 
-$$
-\{\Sigma}_{\phi} = \sum_{k=1}^{K}\mathbf{C}_{k}+\mathbf{D},
-$$
+$$\hat{\mu}(x) = W f_\psi(x) + b$$
 
-where $$\mathbf{C}_{k}$$ represents the contribution of latent component $$k$$ and $$\mathbf{D}$$ is diagonal residual noise. Temporal kernels allow the shared components to vary smoothly across the peri-press window.
-
-**The covariance in this implementation is learned across trials; it is not yet conditioned on each trial’s behavioral input.** The mean and covariance models are fitted sequentially rather than jointly.
+Here $f_\psi(x)$ denotes the image encoder and $W$ projects encoder features into neural-response space.
 
 ---
 
-## Data and Preprocessing
+## Interpretability
 
-The source study recorded dlPFC population activity while unrestrained macaques made self-paced foraging decisions. This repository uses trial-aligned neural responses, strategic task variables, and time-varying position and movement variables. [Shahidi et al., 2024](https://doi.org/10.1038/s41593-024-01575-w)
-
-Neural responses are analyzed in 200 ms bins around button presses. The preprocessing workflow selects foraging events, removes invalid trials and unreliable units, transforms spike counts for Gaussian modeling, and standardizes continuous covariates using training-set statistics. See [`filter_data.m`](filter_data.m) and [`mean-cov-model.ipynb`](mean-cov-model.ipynb) for the implemented workflow.
-
----
-
-## Model Evaluation
-
-The repository compares three stages:
-
-1. **Baseline:** A time-bin- and unit-specific response template without task covariates.
-2. **Mean model:** A transformer-based prediction from task and spatial covariates.
-3. **Mean-covariance model:** The fitted mean plus low-rank, temporally structured residual covariance.
-
-The joint covariance also permits **conditional prediction**: observed activity in selected units or earlier time bins can update predictions for other units or bins. A gain from conditioning indicates predictive statistical dependence under the model; it does **not** by itself establish causal or directed neural influence.
-
----
-
-## Model Interpretation
-
-Permutation-based SHAP analysis attributes **mean-model predictions** to behavioral and spatial inputs. Shuffle-based controls are used to assess whether attribution patterns exceed those expected when trial-level covariate–response alignment is disrupted. These attributions explain the fitted model, not biological causation; correlated covariates and the choice of background data can affect their values.
+Model interpretability was assessed with **occlusion analysis**: local image patches are masked one at a time and the resulting change in predicted neural response is measured.
 
 <p align="center">
-  <img src="assets/1.png" alt="Mean-model training and evaluation alongside shared-covariance parameter estimates" width="800">
+  <img src="assets/1.png" alt="Occlusion attribution maps across V1, V4, and IT for a pear image" width="800">
 </p>
 
-**Figure 1.** Combined results from Figures 5 and 6 of the project presentation. The mean-model panels show training and validation trajectories and distributions of per-unit predictive performance. The covariance panels compare latent loadings, temporal length scales, and independent noise variances before and after fitting. Together, they show what was optimized and how the covariance parameters changed; parameter changes alone do not establish held-out predictive benefit or physiological meaning.
+**Figure 1.** Three ventral-stream examples for a single pear image, ordered top to bottom.
+- **Top — V1**, electrode 405, time bin 15: attribution is spatially diffuse, consistent with low-level feature selectivity.
+- **Middle — V4**, electrode 987, time bin 19: attribution shifts toward mid-level shape and surface regions.
+- **Bottom — IT**, electrode 548, time bin 23: attribution is concentrated on the pear body, consistent with high-level object selectivity.
+
+**Red** regions indicate patches whose occlusion *reduces* the predicted response (supportive evidence); **blue** regions indicate patches whose occlusion *increases* the predicted response (suppressive or competing evidence). Attribution maps reflect model behavior and should not be interpreted as direct evidence of biological causality.
+
+---
+
+## Research Questions
+
+1. Does the complexity of image features that best predict neural responses increase systematically from V1 → V4 → IT?
+2. Does an image-conditioned covariance model predict held-out trial-to-trial variability better than an image-independent covariance model, after accounting for the mean response?
+3. If covariance is image-dependent, is it primarily expressed **within ROIs** or through **forward/backward interactions** between V1, V4, and IT — and what visual properties of the image drive it?
 
 ---
 
 ## Repository Structure
 
-```text
-mean-cov-model/
-├── mean-cov-model.ipynb     # Modeling, evaluation, and analysis notebook
-├── filter_data.m            # MATLAB data selection and filtering
-├── data.mat                 # Repository data file
-├── src/                     # Supporting Python modules
-├── assets/
-│   └── 1.png               # Combined model figure
-└── LICENSE
 ```
+tvsd-encode/
+├── main.ipynb                  # End-to-end notebook: data → model → results
+├── select_data.m               # MATLAB code for selecting data
+└── src/
+    ├── classes.py              # Model and dataset class definitions
+    ├── helper_functions.py     # Preprocessing, training, and evaluation utilities
+    └── plot_functions.py       # Visualization and occlusion attribution plots
 
-The main workflow is in [`mean-cov-model.ipynb`](mean-cov-model.ipynb). Supporting code is in [`src/`](src/); see [`filter_data.m`](filter_data.m) for the MATLAB preprocessing step. The paths above refer to the `real-data` branch.
-
+```
 ---
 
 ## References
 
-- **Data:** Shahidi N, Franch M, Parajuli A, Schrater P, Wright A, Pitkow X, Dragoi V. (2024). *Population coding of strategic variables during foraging in freely moving macaques.* **Nature Neuroscience**, 27, 772–781. [https://doi.org/10.1038/s41593-024-01575-w](https://doi.org/10.1038/s41593-024-01575-w)
-- **Methodological inspiration:** Burghardt R. *Investigating Inter-Area Covariance in the Primate Frontoparietal Reach Network via Latent Space Modelling.* MSc thesis, University of Göttingen. **Unpublished**; cite as a thesis rather than a peer-reviewed paper.
+- Papale P, Wang F, Self MW, Roelfsema PR (2025). *An extensive dataset of spiking activity to reveal the syntax of the ventral stream.* Neuron 113, 539–553.
 
-This repository is an independent analysis of the foraging data. Its learned latent factors and conditional-prediction results should be validated on held-out data before drawing biological conclusions.
+- Hebart MN, Dickter AH, Kidder A, et al. (2019). *THINGS: A database of 1,854 object concepts and more than 26,000 naturalistic object images.* PLoS ONE 14(10): e0223792.
+
+---
+
+## Citation
+
+If you use this code, please cite the TVSD and THINGS papers above and link to this repository.
