@@ -19,9 +19,7 @@ Here, $$\mathbf{x}_i$$ contains task and time-varying spatial variables for tria
 The fitted covariance combines shared latent structure with unit- and time-specific residual variance:
 
 $$
-\boldsymbol{\Sigma}_{\phi}
-=
-\sum_{k=1}^{K}\mathbf{C}_{k}+\mathbf{D},
+\{\Sigma}_{\phi} = \sum_{k=1}^{K}\mathbf{C}_{k}+\mathbf{D},
 $$
 
 where $$\mathbf{C}_{k}$$ represents the contribution of latent component $$k$$ and $$\mathbf{D}$$ is diagonal residual noise. Temporal kernels allow the shared components to vary smoothly across the peri-press window.
@@ -53,10 +51,6 @@ The joint covariance also permits **conditional prediction**: observed activity 
 ## Model Interpretation
 
 Permutation-based SHAP analysis attributes **mean-model predictions** to behavioral and spatial inputs. Shuffle-based controls are used to assess whether attribution patterns exceed those expected when trial-level covariate–response alignment is disrupted. These attributions explain the fitted model, not biological causation; correlated covariates and the choice of background data can affect their values.
-
----
-
-## Figure
 
 <p align="center">
   <img src="assets/1.png" alt="Mean-model training and evaluation alongside shared-covariance parameter estimates" width="800">
