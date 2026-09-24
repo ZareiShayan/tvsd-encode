@@ -50,6 +50,7 @@ Model interpretability was assessed with **occlusion analysis**: local image pat
 ```
 tvsd-encode/
 ├── main.ipynb                  # End-to-end notebook: data → model → results
+├── select_data.m               # MATLAB code for selecting data
 └── src/
     ├── classes.py              # Model and dataset class definitions
     ├── helper_functions.py     # Preprocessing, training, and evaluation utilities
